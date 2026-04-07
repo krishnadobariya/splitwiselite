@@ -145,6 +145,30 @@ h1, h2, h3 {
   margin-bottom: 1.5rem;
 }
 
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 1rem;
+  background: none;
+  border: none;
+  color: hsl(var(--muted-h));
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  transition: color 0.3s ease;
+}
+
+.password-toggle:hover {
+  color: hsl(var(--text-h));
+}
+
 .form-group label {
   display: block;
   margin-bottom: 0.5rem;

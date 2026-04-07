@@ -45,10 +45,20 @@ const deleteExpense = async (req, res) => {
     }
 };
 
+const getMonthlyStats = async (req, res) => {
+    try {
+        const stats = await expenseService.getMonthlyStats(req.params.groupId);
+        res.json(stats);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
+
 module.exports = {
     addExpense,
     getExpensesByGroup,
     getGroupBalances,
     updateExpense,
-    deleteExpense
+    deleteExpense,
+    getMonthlyStats
 };

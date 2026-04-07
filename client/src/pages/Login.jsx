@@ -3,12 +3,14 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { login, reset } from '../store/authSlice';
+import { Eye, EyeOff } from 'lucide-react';
 
 function Login() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
+  const [showPassword, setShowPassword] = useState(false);
 
   const { email, password } = formData;
 
@@ -73,16 +75,26 @@ function Login() {
           </div>
           <div className="form-group">
             <label className="label">Password</label>
-            <input
-              type="password"
-              className="input"
-              id="password"
-              name="password"
-              value={password}
-              placeholder="Enter password"
-              onChange={onChange}
-              required
-            />
+            <div className="password-wrapper">
+                <input
+                type={showPassword ? "text" : "password"}
+                className="input"
+                id="password"
+                name="password"
+                value={password}
+                placeholder="Enter password"
+                onChange={onChange}
+                required
+                style={{ paddingRight: '3rem' }}
+                />
+                <button 
+                  type="button" 
+                  className="password-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <Eye size={20} /> : <EyeOff size={20} />}
+                </button>
+            </div>
           </div>
 
           <button type="submit" className="btn btn-primary" disabled={isLoading}>

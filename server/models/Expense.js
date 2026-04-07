@@ -24,6 +24,15 @@ const expenseSchema = new mongoose.Schema({
         enum: ['equal', 'custom'],
         default: 'equal'
     },
+    category: {
+        type: String,
+        enum: ['Food', 'Travel', 'Shopping', 'Entertainment', 'Others'],
+        default: 'Others'
+    },
+    isSettlement: {
+        type: Boolean,
+        default: false
+    },
     splits: [{
         user: {
             type: mongoose.Schema.Types.ObjectId,

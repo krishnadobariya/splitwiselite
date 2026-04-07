@@ -26,6 +26,18 @@ app.use('/api/auth', authRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/expenses', expenseRoutes);
 
+// Health Check Endpoint
+app.get('/api/health', (req, res) => {
+    res.status(200).json({
+        status: 'ok',
+        database: require('mongoose').connection.readyState === 1 ? 'connected' : 'disconnected',
+        env: {
+            MONGO_URI: process.env.MONGO_URI ? 'SET' : 'NOT SET',
+            JWT_SECRET: process.env.JWT_SECRET ? 'SET' : 'NOT SET'
+        }
+    });
+});
+
 // Error Handling Middleware
 app.use((err, req, res, next) => {
     const statusCode = res.statusCode === 200 ? 500 : res.statusCode;

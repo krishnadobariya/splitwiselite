@@ -3,7 +3,8 @@ const jwt = require('jsonwebtoken');
 
 const registerUser = async (userData) => {
     const { name, email, password } = userData;
-    const userExists = await User.findOne({ email });
+    const normalizedEmail = email.toLowerCase();
+    const userExists = await User.findOne({ email: normalizedEmail });
 
     if (userExists) {
         throw new Error('User already exists');
@@ -11,7 +12,7 @@ const registerUser = async (userData) => {
 
     const user = await User.create({
         name,
-        email,
+        email: normalizedEmail,
         password
     });
 
@@ -24,7 +25,8 @@ const registerUser = async (userData) => {
 };
 
 const loginUser = async (email, password) => {
-    const user = await User.findOne({ email }).select('+password');
+    const normalizedEmail = email.toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail }).select('+password');
 
     if (user && (await user.matchPassword(password))) {
         return {
@@ -34,6 +36,11 @@ const loginUser = async (email, password) => {
             token: generateToken(user._id)
         };
     } else {
+        if (!user) {
+            console.log(`Login failed: User with email ${normalizedEmail} not found.`);
+        } else {
+            console.log(`Login failed: Password mismatch for user ${normalizedEmail}.`);
+        }
         throw new Error('Invalid email or password');
     }
 };

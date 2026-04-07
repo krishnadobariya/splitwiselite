@@ -88,10 +88,33 @@ const updateExpense = async (expenseId, updateData, userId) => {
     return expense.populate('payer', 'name email');
 };
 
+const getMonthlyStats = async (groupId) => {
+    const expenses = await Expense.find({ group: groupId, isSettlement: false });
+    
+    const stats = {
+        Food: 0,
+        Travel: 0,
+        Shopping: 0,
+        Entertainment: 0,
+        Others: 0
+    };
+
+    expenses.forEach(exp => {
+        if (stats[exp.category] !== undefined) {
+            stats[exp.category] += exp.amount;
+        } else {
+            stats.Others += exp.amount;
+        }
+    });
+
+    return Object.keys(stats).map(name => ({ name, value: stats[name] }));
+};
+
 module.exports = {
     addExpense,
     getExpensesByGroup,
     getGroupBalances,
     updateExpense,
-    deleteExpense
+    deleteExpense,
+    getMonthlyStats
 };

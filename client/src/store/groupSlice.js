@@ -7,6 +7,8 @@ const initialState = {
   groups: [],
   currentGroup: null,
   balances: [],
+  groupStats: [],
+  currency: { code: 'INR', symbol: '₹' },
   isError: false,
   isSuccess: false,
   isLoading: false,
@@ -171,6 +173,21 @@ export const removeMember = createAsyncThunk(
   }
 );
 
+// Get group stats
+export const getGroupStats = createAsyncThunk(
+  'groups/getStats',
+  async (groupId, thunkAPI) => {
+    try {
+      const config = getAuthHeader(thunkAPI);
+      const response = await axios.get(`/api/expenses/${groupId}/stats`, config);
+      return response.data;
+    } catch (error) {
+      const message = (error.response && error.response.data && error.response.data.message) || error.message || error.toString();
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
 export const groupSlice = createSlice({
   name: 'groups',
   initialState,
@@ -181,6 +198,9 @@ export const groupSlice = createSlice({
       state.isError = false;
       state.message = '';
     },
+    setCurrency: (state, action) => {
+      state.currency = action.payload;
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -210,6 +230,9 @@ export const groupSlice = createSlice({
       .addCase(getGroupBalances.fulfilled, (state, action) => {
         state.balances = action.payload;
       })
+      .addCase(getGroupStats.fulfilled, (state, action) => {
+        state.groupStats = action.payload;
+      })
       .addCase(addMember.fulfilled, (state, action) => {
         state.currentGroup = action.payload;
       })
@@ -226,5 +249,5 @@ export const groupSlice = createSlice({
   },
 });
 
-export const { reset } = groupSlice.actions;
+export const { reset, setCurrency } = groupSlice.actions;
 export default groupSlice.reducer;

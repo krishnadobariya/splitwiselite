@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getGroupById, getGroupBalances, addMember, updateGroup, deleteGroup, removeMember, updateExpense, deleteExpense, reset } from '../store/groupSlice';
+import { getGroupById, getGroupBalances, addMember, updateGroup, deleteGroup, removeMember, updateExpense, deleteExpense, reset, setCurrency } from '../store/groupSlice';
 import axios from 'axios';
-import { UserPlus, Plus, Users, Receipt, ArrowLeft, TrendingUp, TrendingDown, Edit2, Trash2, X } from 'lucide-react';
+import { UserPlus, Plus, Users, Receipt, ArrowLeft, TrendingDown, Edit2, Trash2, X, Globe, CheckCircle2, Download, FileText, Table } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -36,12 +39,13 @@ function GroupDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { currentGroup, balances, isLoading } = useSelector((state) => state.groups);
+  const { currentGroup, balances, isLoading, currency } = useSelector((state) => state.groups);
   const { user } = useSelector((state) => state.auth);
 
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [showEditGroupModal, setShowEditGroupModal] = useState(false);
+  const [showSettleUpModal, setShowSettleUpModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
   
   const [expenses, setExpenses] = useState([]);
@@ -76,6 +80,88 @@ function GroupDetail() {
     } catch (error) {
       console.error('Error fetching expenses:', error);
     }
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    const primaryColor = [99, 102, 241]; // Indigo
+    const secondaryColor = [30, 41, 59]; // Dark Slate
+    const currencyStr = currency.code === 'INR' ? 'Rs.' : currency.code;
+
+    // 1. Header Bar
+    doc.setFillColor(...primaryColor);
+    doc.rect(0, 0, 210, 40, 'F');
+    
+    // 2. Branding & Title
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.setFont("helvetica", "bold");
+    doc.text("Splitwise Lite", 14, 20);
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Report Generated: ${new Date().toLocaleDateString()}`, 14, 28);
+
+    doc.setTextColor(...secondaryColor);
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text(currentGroup.name, 14, 55);
+
+    // 3. Summary Section
+    doc.setDrawColor(226, 232, 240);
+    doc.line(14, 60, 196, 60);
+
+    const totalSpent = expenses.reduce((acc, curr) => acc + curr.amount, 0);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text(`TOTAL GROUP SPENDING: ${currencyStr} ${totalSpent.toFixed(2)}`, 14, 70);
+
+    // 4. Balances Block
+    doc.setFontSize(11);
+    doc.setTextColor(100, 116, 139);
+    doc.text("CURRENT BALANCES SUMMARY:", 14, 82);
+    
+    let yPos = 90;
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...secondaryColor);
+    
+    balances.forEach(bal => {
+      const isSettled = Math.abs(bal.balance) < 0.01;
+      const status = isSettled ? "is settled" : (bal.balance >= 0 ? "is owed" : "owes");
+      doc.text(`• ${bal.user.name} ${status} ${currencyStr} ${Math.abs(bal.balance).toFixed(2)}`, 20, yPos);
+      yPos += 7;
+    });
+
+    // 5. Expense Table
+    const tableColumn = ["Date", "Description", "Payer", "Amount"];
+    const tableRows = expenses.map(exp => [
+      new Date(exp.createdAt).toLocaleDateString(),
+      exp.description,
+      exp.payer.name,
+      `${currencyStr} ${exp.amount.toFixed(2)}`
+    ]);
+
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: yPos + 10,
+      theme: 'striped',
+      headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold' },
+      styles: { font: 'helvetica', fontSize: 10, cellPadding: 4 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      margin: { left: 14, right: 14 }
+    });
+
+    // 6. Footer
+    const pageCount = doc.internal.getNumberOfPages();
+    for(let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(`Page ${i} of ${pageCount}`, 105, 285, { align: 'center' });
+    }
+
+    doc.save(`${currentGroup.name}_Expense_Report.pdf`);
   };
 
   const onAddExpense = async (e) => {
@@ -188,7 +274,58 @@ function GroupDetail() {
     }
   };
 
+  const onSettleUp = async (debtor, creditor, amount) => {
+    const payload = {
+        description: `Settle Up: ${debtor.name} paid ${creditor.name}`,
+        amount: parseFloat(amount),
+        payer: debtor._id,
+        group: id,
+        category: 'Others',
+        isSettlement: true,
+        splitType: 'custom',
+        splits: [{ user: creditor._id, amount: parseFloat(amount) }]
+    };
+
+    try {
+        const config = { headers: { Authorization: `Bearer ${user.token}` } };
+        await axios.post('/api/expenses', payload, config);
+        dispatch(getGroupBalances(id));
+        dispatch(getGroupStats(id));
+        fetchExpenses();
+        setShowSettleUpModal(false);
+    } catch (error) {
+        alert('Settlement failed');
+    }
+  };
+
   if (isLoading || !currentGroup) return <p className="label">Loading group details...</p>;
+
+  const formatAmount = (amt) => `${currency.symbol}${amt.toFixed(2)}`;
+
+  // Calculate Suggested Settlements
+  const getSettlements = () => {
+    const sorted = [...balances].sort((a, b) => a.balance - b.balance);
+    let i = 0, j = sorted.length - 1;
+    const suggestions = [];
+
+    const tempBalances = sorted.map(b => ({ ...b }));
+
+    while (i < j) {
+        const amount = Math.min(-tempBalances[i].balance, tempBalances[j].balance);
+        if (amount > 0.01) {
+            suggestions.push({
+                from: tempBalances[i].user,
+                to: tempBalances[j].user,
+                amount: amount
+            });
+            tempBalances[i].balance += amount;
+            tempBalances[j].balance -= amount;
+        }
+        if (tempBalances[i].balance >= -0.01) i++;
+        if (tempBalances[j].balance <= 0.01) j--;
+    }
+    return suggestions;
+  };
 
   const isCreator = currentGroup.createdBy === user._id;
 
@@ -221,21 +358,73 @@ function GroupDetail() {
                     </button>
                 </div>
             )}
-        </div>
-
-        <div className="dashboard-header" style={{ marginBottom: 0, paddingTop: '1.5rem', borderTop: '1px solid var(--glass-border)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: 'hsl(var(--muted-h))' }}>
-                <Users size={20} />
-                <span style={{ fontWeight: '600' }}>{currentGroup.members.length} Members</span>
+        </div>        <div className="dashboard-header" style={{ marginBottom: 0, paddingTop: '1.5rem', borderTop: '1px solid var(--glass-border)', flexWrap: 'wrap', gap: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: 'hsl(var(--muted-h))' }}>
+                    <Users size={20} />
+                    <span style={{ fontWeight: '700', fontSize: '0.95rem' }}>{currentGroup.members.length} Members</span>
+                </div>
+                <div className="currency-selector" style={{ display: 'flex', gap: '0.25rem', background: 'rgba(255,255,255,0.05)', padding: '0.25rem', borderRadius: '0.75rem' }}>
+                    {[ {s:'₹', c:'INR'}, {s:'$', c:'USD'}, {s:'€', c:'EUR'} ].map(curr => (
+                        <button 
+                            key={curr.c}
+                            onClick={() => dispatch(setCurrency({ code: curr.c, symbol: curr.s }))}
+                            className={`btn-sm ${currency.code === curr.c ? 'active' : ''}`}
+                            style={{ 
+                                padding: '0.4rem 0.8rem', 
+                                fontSize: '0.8rem', 
+                                background: currency.code === curr.c ? 'hsl(var(--p))' : 'transparent',
+                                color: currency.code === curr.c ? 'white' : 'hsl(var(--muted-h))',
+                                border: 'none',
+                                borderRadius: '0.5rem',
+                                cursor: 'pointer',
+                                fontWeight: '700',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            {curr.s}
+                        </button>
+                    ))}
+                </div>
             </div>
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button onClick={() => setShowMemberModal(true)} className="btn" style={{ background: 'rgba(255,255,255,0.1)', color: 'white', width: 'auto', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <UserPlus size={18} />
-                <span>Invite</span>
-              </button>
-              <button onClick={() => { setEditingExpense(null); setExpenseData({ description: '', amount: '', splitType: 'equal', customSplits: {} }); setShowExpenseModal(true); }} className="btn btn-primary" style={{ width: 'auto', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Plus size={18} />
-                <span>Add Expense</span>
+
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              {/* Utility Section */}
+              <div style={{ display: 'flex', gap: '0.5rem', marginRight: '0.5rem' }}>
+                <button 
+                  onClick={exportToPDF} 
+                  className="btn" 
+                  title="Export PDF"
+                  style={{ background: 'rgba(255,255,255,0.05)', color: 'white', width: '42px', height: '42px', padding: 0, display: 'flex', justifyContent: 'center', borderRadius: '0.75rem' }}
+                >
+                  <Download size={20} />
+                </button>
+                <button 
+                  onClick={() => setShowSettleUpModal(true)} 
+                  className="btn" 
+                  title="Settle Up"
+                  style={{ background: 'rgba(255,255,255,0.05)', color: 'white', width: '42px', height: '42px', padding: 0, display: 'flex', justifyContent: 'center', borderRadius: '0.75rem' }}
+                >
+                  <CheckCircle2 size={20} />
+                </button>
+                <button 
+                  onClick={() => setShowMemberModal(true)} 
+                  className="btn" 
+                  title="Invite Member"
+                  style={{ background: 'rgba(255,255,255,0.05)', color: 'white', width: '42px', height: '42px', padding: 0, display: 'flex', justifyContent: 'center', borderRadius: '0.75rem' }}
+                >
+                  <UserPlus size={20} />
+                </button>
+              </div>
+
+              {/* Action Section */}
+              <button 
+                onClick={() => { setEditingExpense(null); setExpenseData({ description: '', amount: '', category: 'Food', splitType: 'equal', customSplits: {} }); setShowExpenseModal(true); }} 
+                className="btn btn-primary" 
+                style={{ width: 'auto', padding: '0 1.5rem', height: '42px', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 8px 20px -6px hsla(var(--p), 0.5)' }}
+              >
+                <Plus size={20} />
+                <span style={{ fontWeight: '800' }}>Add Expense</span>
               </button>
             </div>
         </div>
@@ -277,7 +466,7 @@ function GroupDetail() {
                         </div>
                       )}
                     </div>
-                    <p style={{ fontSize: '1.1rem', fontWeight: '700' }}>₹{exp.amount.toFixed(2)}</p>
+                    <p style={{ fontSize: '1.1rem', fontWeight: '700' }}>{formatAmount(exp.amount)}</p>
                   </motion.div>
                 ))
               ) : (
@@ -323,7 +512,7 @@ function GroupDetail() {
                                 {bal.user.email}
                             </span>
                             <span style={{ fontWeight: '800', fontSize: '1rem', color: isSettled ? 'hsl(var(--muted-h))' : (isPositive ? 'hsl(var(--success))' : 'hsl(var(--error))'), whiteSpace: 'nowrap' }}>
-                                ₹{Math.abs(bal.balance).toFixed(2)}
+                                {formatAmount(Math.abs(bal.balance))}
                             </span>
                         </div>
                         {!isSettled && (
@@ -370,7 +559,7 @@ function GroupDetail() {
                 <input type="text" className="input" placeholder="Description" value={expenseData.description} onChange={(e) => setExpenseData({...expenseData, description: e.target.value})} required />
               </div>
               <div className="form-group">
-                <input type="number" className="input" placeholder="Amount (₹)" value={expenseData.amount} onChange={(e) => setExpenseData({...expenseData, amount: e.target.value})} required />
+                <input type="number" className="input" placeholder={`Amount (${currency.symbol})`} value={expenseData.amount} onChange={(e) => setExpenseData({...expenseData, amount: e.target.value})} required />
               </div>
               
               <div className="form-group">
@@ -451,6 +640,73 @@ function GroupDetail() {
                   <button type="submit" className="btn btn-primary">Update</button>
               </div>
             </form>
+          </motion.div>
+        </div>
+      )}
+      </AnimatePresence>
+      <AnimatePresence>
+      {showSettleUpModal && (
+        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100 }}>
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="glass-card auth-card"
+            style={{ maxWidth: '500px', width: '90%' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <h2 className="auth-title" style={{ fontSize: '1.5rem', marginBottom: 0 }}>Settle Up</h2>
+                <button onClick={() => setShowSettleUpModal(false)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>
+                    <X size={24} />
+                </button>
+            </div>
+            
+            <div style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+                {getSettlements().length > 0 ? (
+                    getSettlements().map((settle, idx) => (
+                        <div key={idx} className="glass-card" style={{ padding: '1rem', marginBottom: '1rem', background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <div style={{ textAlign: 'center' }}>
+                                    <p style={{ fontWeight: '700', fontSize: '0.9rem' }}>{settle.from.name}</p>
+                                    <p className="label" style={{ fontSize: '0.7rem' }}>owes</p>
+                                    <p style={{ fontWeight: '700', fontSize: '0.9rem' }}>{settle.to.name}</p>
+                                </div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                                <p style={{ fontWeight: '800', fontSize: '1.1rem', color: 'hsl(var(--success))', marginBottom: '0.5rem' }}>
+                                    {formatAmount(settle.amount)}
+                                </p>
+                                {(settle.to._id === user._id || isCreator) ? (
+                                    <button 
+                                        onClick={() => onSettleUp(settle.from, settle.to, settle.amount)} 
+                                        className="btn btn-primary" 
+                                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', width: 'auto' }}
+                                    >
+                                        Record Payment
+                                    </button>
+                                ) : settle.from._id === user._id ? (
+                                    <span className="label" style={{ fontSize: '0.75rem', color: 'hsl(var(--p))' }}>
+                                        Pay {settle.to.name}
+                                    </span>
+                                ) : null}
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <div style={{ textAlign: 'center', padding: '2rem' }}>
+                        <CheckCircle2 size={48} style={{ color: 'hsl(var(--success))', marginBottom: '1rem', opacity: 0.5 }} />
+                        <p className="label">Everyone is settled up!</p>
+                    </div>
+                )}
+            </div>
+
+            <button 
+                onClick={() => setShowSettleUpModal(false)} 
+                className="btn" 
+                style={{ marginTop: '1rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}
+            >
+                Close
+            </button>
           </motion.div>
         </div>
       )}

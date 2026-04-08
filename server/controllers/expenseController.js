@@ -54,11 +54,39 @@ const getMonthlyStats = async (req, res) => {
     }
 };
 
+const addComment = async (req, res) => {
+    try {
+        const { comment, groupId } = await expenseService.addComment(req.params.id, req.user._id, req.body.text);
+        
+        // Emit Socket Event
+        const io = req.app.get('io');
+        io.to(groupId.toString()).emit('new_comment', {
+            expenseId: req.params.id,
+            comment: comment
+        });
+
+        res.status(201).json(comment);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
+
+const deleteComment = async (req, res) => {
+    try {
+        const result = await expenseService.deleteComment(req.params.id, req.params.commentId, req.user._id);
+        res.json(result);
+    } catch (error) {
+        res.status(403).json({ message: error.message });
+    }
+};
+
 module.exports = {
     addExpense,
     getExpensesByGroup,
     getGroupBalances,
     updateExpense,
     deleteExpense,
-    getMonthlyStats
+    getMonthlyStats,
+    addComment,
+    deleteComment
 };

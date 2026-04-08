@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { addExpense, getExpensesByGroup, getGroupBalances, updateExpense, deleteExpense, getMonthlyStats } = require('../controllers/expenseController');
+const { addExpense, getExpensesByGroup, getGroupBalances, updateExpense, deleteExpense, getMonthlyStats, addComment, deleteComment } = require('../controllers/expenseController');
 const { protect } = require('../middleware/authMiddleware');
 
 router.route('/')
@@ -9,6 +9,12 @@ router.route('/')
 router.route('/:id')
       .put(protect, updateExpense)
       .delete(protect, deleteExpense);
+
+router.route('/:id/comments')
+      .post(protect, addComment);
+
+router.route('/:id/comments/:commentId')
+      .delete(protect, deleteComment);
 
 router.route('/:groupId')
       .get(protect, getExpensesByGroup);

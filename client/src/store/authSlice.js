@@ -47,6 +47,27 @@ export const logout = createAsyncThunk('auth/logout', async () => {
   localStorage.removeItem('user');
 });
 
+// Update user profile
+const updateProfile = createAsyncThunk(
+  'auth/updateProfile',
+  async (profileData, thunkAPI) => {
+    try {
+      const user = thunkAPI.getState().auth.user;
+      if (!user || !user.token) {
+        return thunkAPI.rejectWithValue('You are not authorized to perform this action');
+      }
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      const response = await axios.put('/api/auth/profile', profileData, config);
+      // Persist updated user in localStorage
+      localStorage.setItem('user', JSON.stringify(response.data));
+      return response.data;
+    } catch (error) {
+      const message = (error.response && error.response.data && error.response.data.message) || error.message || error.toString();
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
 export const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -90,9 +111,23 @@ export const authSlice = createSlice({
       })
       .addCase(logout.fulfilled, (state) => {
         state.user = null;
+      })
+      .addCase(updateProfile.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        state.user = action.payload;
+      })
+      .addCase(updateProfile.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
       });
   },
 });
 
 export const { reset } = authSlice.actions;
+export { updateProfile };
 export default authSlice.reducer;

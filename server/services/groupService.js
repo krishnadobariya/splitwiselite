@@ -13,15 +13,15 @@ const createGroup = async (groupData, userId) => {
         createdBy: userId
     });
 
-    return group.populate('members', 'name email');
+    return group.populate('members', 'name email avatar');
 };
 
 const getGroups = async (userId) => {
-    return await Group.find({ members: userId }).populate('members', 'name email');
+    return await Group.find({ members: userId }).populate('members', 'name email avatar');
 };
 
 const getGroupById = async (groupId) => {
-    return await Group.findById(groupId).populate('members', 'name email');
+    return await Group.findById(groupId).populate('members', 'name email avatar');
 };
 
 const addMember = async (groupId, email) => {
@@ -42,7 +42,7 @@ const addMember = async (groupId, email) => {
     group.members.push(user._id);
     await group.save();
 
-    return group.populate('members', 'name email');
+    return group.populate('members', 'name email avatar');
 };
 
 const deleteGroup = async (groupId, userId) => {
@@ -68,7 +68,7 @@ const updateGroup = async (groupId, updateData, userId) => {
 
     group.name = updateData.name || group.name;
     await group.save();
-    return group.populate('members', 'name email');
+    return group.populate('members', 'name email avatar');
 };
 
 const removeMember = async (groupId, memberId, userId) => {
@@ -87,7 +87,7 @@ const removeMember = async (groupId, memberId, userId) => {
 
     // Also remove expenses involving this member? (Usually we keep history but balances will change)
     // For simplicity, we just keep past expenses as is.
-    return group.populate('members', 'name email');
+    return group.populate('members', 'name email avatar');
 };
 
 module.exports = {

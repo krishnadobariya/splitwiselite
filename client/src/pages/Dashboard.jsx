@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getGroups, createGroup, updateGroup, deleteGroup, reset } from '../store/groupSlice';
 import { Plus, Users, ArrowRight, Edit2, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import ConfirmModal from '../components/ConfirmModal';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -36,10 +38,11 @@ function Dashboard() {
   const [showModal, setShowModal] = useState(false);
   const [editGroup, setEditGroup] = useState(null);
   const [groupName, setGroupName] = useState('');
+  const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   useEffect(() => {
     if (isError) {
-      alert(message);
+      toast.error(message);
     }
     dispatch(getGroups());
     return () => {
@@ -47,27 +50,48 @@ function Dashboard() {
     };
   }, [isError, message, dispatch]);
 
-  const onAddGroup = (e) => {
+  const onAddGroup = async (e) => {
     e.preventDefault();
     if (!groupName) return;
-    dispatch(createGroup({ name: groupName, members: [] }));
-    setGroupName('');
-    setShowModal(false);
+    try {
+        await dispatch(createGroup({ name: groupName, members: [] })).unwrap();
+        toast.success('Group created');
+        setGroupName('');
+        setShowModal(false);
+    } catch (err) {
+        toast.error(err);
+    }
   };
 
-  const onUpdateGroup = (e) => {
+  const onUpdateGroup = async (e) => {
     e.preventDefault();
     if (!groupName || !editGroup) return;
-    dispatch(updateGroup({ groupId: editGroup._id, groupData: { name: groupName } }));
-    setGroupName('');
-    setEditGroup(null);
+    try {
+        await dispatch(updateGroup({ groupId: editGroup._id, groupData: { name: groupName } })).unwrap();
+        toast.success('Group updated');
+        setGroupName('');
+        setEditGroup(null);
+    } catch (err) {
+        toast.error(err);
+    }
   };
 
   const onDeleteGroup = (e, groupId) => {
     e.stopPropagation();
-    if (window.confirm('Are you sure you want to delete this group? All associated expenses will be permanently removed.')) {
-      dispatch(deleteGroup(groupId));
-    }
+    setConfirmConfig({
+        isOpen: true,
+        title: 'Delete Group',
+        message: 'Are you sure you want to delete this group? All associated expenses will be permanently removed.',
+        onConfirm: async () => {
+            try {
+                await dispatch(deleteGroup(groupId)).unwrap();
+                toast.success('Group deleted');
+            } catch (err) {
+                toast.error(err);
+            }
+        },
+        isDestructive: true
+    });
   };
 
   const openEditModal = (e, group) => {
@@ -107,9 +131,46 @@ function Dashboard() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div style={{ flex: 1 }}>
                     <h2 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>{group.name}</h2>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Users size={16} className="label" />
-                      <span className="label">{group.members.length} members</span>
+                    <div style={{ display: 'flex', alignItems: 'center', marginTop: '0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        {group.members.slice(0, 4).map((m, index) => (
+                          <div 
+                            key={m._id} 
+                            className="member-avatar" 
+                            title={m.name}
+                            style={{ 
+                              width: '28px', 
+                              height: '28px', 
+                              fontSize: '0.65rem', 
+                              marginLeft: index === 0 ? 0 : '-0.5rem', 
+                              border: '2px solid rgba(255,255,255,0.1)',
+                              boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+                              zIndex: 10 - index
+                            }}
+                          >
+                            {m.avatar ? <img src={m.avatar} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : m.name.charAt(0)}
+                          </div>
+                        ))}
+                        {group.members.length > 4 && (
+                          <div 
+                            className="member-avatar" 
+                            style={{ 
+                              width: '28px', 
+                              height: '28px', 
+                              fontSize: '0.65rem', 
+                              marginLeft: '-0.5rem', 
+                              background: 'rgba(255,255,255,0.05)', 
+                              border: '2px solid rgba(255,255,255,0.1)',
+                              zIndex: 5
+                            }}
+                          >
+                            +{group.members.length - 4}
+                          </div>
+                        )}
+                      </div>
+                      <span className="label" style={{ fontSize: '0.8rem', marginLeft: '0.6rem' }}>
+                        {group.members.length} members
+                      </span>
                     </div>
                     {user && group.createdBy === user._id && (
                         <div style={{ marginTop: '1rem', display: 'flex', gap: '0.75rem' }}>
@@ -184,6 +245,15 @@ function Dashboard() {
           </div>
         </div>
       )}
+
+      <ConfirmModal 
+        isOpen={confirmConfig.isOpen}
+        onClose={() => setConfirmConfig({ ...confirmConfig, isOpen: false })}
+        onConfirm={confirmConfig.onConfirm}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        isDestructive={confirmConfig.isDestructive}
+      />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout, reset } from '../store/authSlice';
-import { LogOut, User as UserIcon, Wallet } from 'lucide-react';
+import { LogOut, Settings, Wallet } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 function Navbar() {
@@ -14,6 +14,8 @@ function Navbar() {
     dispatch(reset());
     navigate('/login');
   };
+
+  const initials = (user?.name || 'U').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
   return (
     <nav className="navbar">
@@ -35,14 +37,31 @@ function Navbar() {
         </Link>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-          <div style={{ background: 'hsla(var(--p), 0.15)', padding: '0.5rem', borderRadius: '50%', color: 'hsl(var(--p))', display: 'flex' }}>
-            <UserIcon size={18} />
-          </div>
-          <span style={{ fontWeight: '700', fontSize: '0.9rem', color: 'white' }}>{user?.name}</span>
-        </div>
-        
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+
+        {/* Profile Link */}
+        <Link to="/profile" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <motion.div 
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.4rem 0.9rem 0.4rem 0.4rem', borderRadius: '2rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', cursor: 'pointer' }}
+          >
+            {/* Avatar */}
+            <div style={{ width: '32px', height: '32px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, border: '2px solid hsl(var(--p))', boxShadow: '0 0 0 2px hsla(var(--p), 0.2)' }}>
+              {user?.avatar ? (
+                <img src={user.avatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, hsl(var(--p)), hsl(var(--s)))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', color: 'white', fontSize: '0.7rem' }}>
+                  {initials}
+                </div>
+              )}
+            </div>
+            <span style={{ fontWeight: '700', fontSize: '0.9rem', color: 'white' }}>{user?.name}</span>
+            <Settings size={14} style={{ color: 'hsl(var(--muted-h))' }} />
+          </motion.div>
+        </Link>
+
+        {/* Logout */}
         <motion.button 
           whileHover={{ scale: 1.05, backgroundColor: 'hsla(var(--error), 0.15)' }}
           whileTap={{ scale: 0.95 }}

@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { login, reset } from '../store/authSlice';
 import { Eye, EyeOff } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 function Login() {
   const [formData, setFormData] = useState({
@@ -23,7 +24,7 @@ function Login() {
 
   useEffect(() => {
     if (isError) {
-      alert(message);
+      toast.error(message);
     }
 
     if (isSuccess || user) {

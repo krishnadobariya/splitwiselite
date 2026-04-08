@@ -13,18 +13,19 @@ const addExpense = async (expenseData) => {
     }
 
     const expense = await Expense.create(expenseData);
-    return expense.populate('payer', 'name email');
+    return expense.populate('payer', 'name email avatar');
 };
 
 const getExpensesByGroup = async (groupId) => {
     return await Expense.find({ group: groupId })
-        .populate('payer', 'name email')
-        .populate('splits.user', 'name email');
+        .populate('payer', 'name email avatar')
+        .populate('splits.user', 'name email avatar')
+        .populate('comments.user', 'name email avatar');
 };
 
 const getGroupBalances = async (groupId) => {
     const expenses = await Expense.find({ group: groupId });
-    const group = await Group.findById(groupId).populate('members', 'name email');
+    const group = await Group.findById(groupId).populate('members', 'name email avatar');
 
     if (!group) {
         throw new Error('Group not found');
@@ -51,7 +52,8 @@ const getGroupBalances = async (groupId) => {
         user: {
             _id: member._id,
             name: member.name,
-            email: member.email
+            email: member.email,
+            avatar: member.avatar
         },
         balance: balances[member._id]
     }));
@@ -85,7 +87,7 @@ const updateExpense = async (expenseId, updateData, userId) => {
 
     Object.assign(expense, updateData);
     await expense.save();
-    return expense.populate('payer', 'name email');
+    return expense.populate('payer', 'name email avatar');
 };
 
 const getMonthlyStats = async (groupId) => {
@@ -110,11 +112,45 @@ const getMonthlyStats = async (groupId) => {
     return Object.keys(stats).map(name => ({ name, value: stats[name] }));
 };
 
+const addComment = async (expenseId, userId, text) => {
+    const expense = await Expense.findById(expenseId);
+    if (!expense) throw new Error('Expense not found');
+
+    expense.comments.push({ user: userId, text });
+    await expense.save();
+    
+    const updatedExpense = await Expense.findById(expenseId)
+        .populate('comments.user', 'name avatar');
+    
+    return {
+        comment: updatedExpense.comments[updatedExpense.comments.length - 1],
+        groupId: updatedExpense.group
+    };
+};
+
+const deleteComment = async (expenseId, commentId, userId) => {
+    const expense = await Expense.findById(expenseId);
+    if (!expense) throw new Error('Expense not found');
+
+    const comment = expense.comments.id(commentId);
+    if (!comment) throw new Error('Comment not found');
+
+    if (comment.user.toString() !== userId.toString()) {
+        throw new Error('Not authorized to delete this comment');
+    }
+
+    comment.remove();
+    await expense.save();
+    return { message: 'Comment removed' };
+};
+
 module.exports = {
     addExpense,
     getExpensesByGroup,
     getGroupBalances,
     updateExpense,
     deleteExpense,
-    getMonthlyStats
+    getMonthlyStats,
+    addComment,
+    deleteComment
 };

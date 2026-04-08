@@ -302,6 +302,8 @@ h1, h2, h3 {
   font-size: 0.875rem;
   flex-shrink: 0;
   box-shadow: 0 4px 12px hsla(var(--p), 0.3);
+  overflow: hidden;
+  transition: transform 0.2s ease;
 }
 
 .status-pill {
@@ -409,4 +411,216 @@ h1, h2, h3 {
 .expense-list, .balance-list {
   scrollbar-width: thin;
   scrollbar-color: hsla(var(--p), 0.5) transparent;
+}
+
+/* Custom Select Premium Styling */
+.custom-select-container {
+  position: relative;
+  width: 100%;
+  cursor: pointer;
+}
+
+.custom-select-trigger {
+  width: 100%;
+  padding: 0.875rem 1.25rem;
+  background: hsla(var(--bg-h), 0.4);
+  border: 1px solid var(--glass-border);
+  border-radius: 0.75rem;
+  color: white;
+  font-size: 0.95rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s ease;
+  user-select: none;
+}
+
+.custom-select-trigger:hover, .custom-select-trigger.active {
+  border-color: hsla(var(--p), 0.6);
+  background: hsla(var(--bg-h), 0.6);
+  box-shadow: 0 0 0 4px hsla(var(--p), 0.1);
+}
+
+.custom-select-trigger.active {
+  border-color: hsl(var(--p));
+}
+
+.custom-select-trigger .placeholder {
+  color: hsl(var(--muted-h));
+}
+
+.custom-select-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  right: 0;
+  z-index: 1050;
+  padding: 0.4rem !important; /* Override glass-card padding */
+  max-height: 250px;
+  overflow-y: auto;
+  border: 1px solid hsla(var(--p), 0.2);
+  backdrop-filter: blur(25px) !important;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
+}
+
+.custom-select-menu::-webkit-scrollbar {
+  display: none;
+}
+
+.custom-select-option {
+  padding: 0.6rem 1rem;
+  border-radius: 0.5rem;
+  list-style: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--muted-h));
+  transition: all 0.2s ease;
+  margin-bottom: 0.2rem;
+}
+
+.custom-select-option:last-child {
+  margin-bottom: 0;
+}
+
+.custom-select-option:hover {
+  background: hsla(var(--p), 0.1);
+  color: white;
+  transform: translateX(4px);
+}
+
+.custom-select-option.selected {
+  background: linear-gradient(135deg, hsl(var(--p)), hsl(var(--s)));
+  color: white;
+  box-shadow: 0 4px 12px hsla(var(--p), 0.3);
+}
+
+/* --- Slot Machine Decision Maker --- */
+.slot-machine-container {
+  position: relative;
+  width: 100%;
+  max-width: 240px;
+  margin: 1.5rem auto;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 1.5rem;
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+
+.slot-window {
+  height: 80px;
+  background: hsla(var(--bg-h), 0.8);
+  border-radius: 1rem;
+  overflow: hidden;
+  position: relative;
+  border: 2px solid var(--glass-border);
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+}
+
+.slot-window::before, .slot-window::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 25px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.slot-window::before {
+  top: 0;
+  background: linear-gradient(to bottom, hsla(var(--bg-h), 1), transparent);
+}
+
+.slot-window::after {
+  bottom: 0;
+  background: linear-gradient(to top, hsla(var(--bg-h), 1), transparent);
+}
+
+.slot-reel {
+  display: flex;
+  flex-direction: column;
+}
+
+.slot-item {
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  color: white;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.slot-item img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid hsla(var(--p), 0.5);
+}
+
+.slot-item .avatar-placeholder {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: hsla(var(--p), 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  color: hsl(var(--p));
+  border: 2px solid hsla(var(--p), 0.5);
+}
+
+.slot-lever-container {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.slot-btn {
+  background: linear-gradient(135deg, hsl(var(--p)), hsl(var(--s)));
+  color: white;
+  border: none;
+  padding: 0.6rem 2rem;
+  border-radius: 2rem;
+  font-weight: 800;
+  font-size: 0.8rem;
+  cursor: pointer;
+  letter-spacing: 0.1em;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 10px 20px hsla(var(--p), 0.3);
+}
+
+.slot-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 25px hsla(var(--p), 0.4);
+}
+
+.slot-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.slot-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(1);
+}
+
+.winning-glow {
+  position: absolute;
+  inset: 0;
+  border: 2px solid hsl(var(--success));
+  border-radius: 1rem;
+  z-index: 3;
+  box-shadow: 0 0 25px hsla(var(--success), 0.5);
+  animation: pulseSuccess 1s infinite;
+  pointer-events: none;
+}
+
+@keyframes pulseSuccess {
+  0% { opacity: 0.4; }
+  50% { opacity: 1; }
+  100% { opacity: 0.4; }
 }

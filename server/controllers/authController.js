@@ -19,7 +19,27 @@ const loginUser = async (req, res) => {
     }
 };
 
+const getProfile = async (req, res) => {
+    try {
+        const user = await authService.getProfile(req.user._id);
+        res.json(user);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
+
+const updateProfile = async (req, res) => {
+    try {
+        const user = await authService.updateProfile(req.user._id, req.body);
+        res.json(user);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
+
 module.exports = {
     registerUser,
-    loginUser
+    loginUser,
+    getProfile,
+    updateProfile
 };
